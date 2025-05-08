@@ -18,122 +18,123 @@ mcp = FastMCP("mem0-mcp")
 
 # Initialize mem0 client and set default user
 mem0_client = MemoryClient()
-DEFAULT_USER_ID = "cursor_mcp"
-CUSTOM_INSTRUCTIONS = """
-Extract the Following Information:  
+ROBOT_USER_ID = "navigation_robot"
 
-- Code Snippets: Save the actual code for future reference.  
-- Explanation: Document a clear description of what the code does and how it works.
-- Related Technical Details: Include information about the programming language, dependencies, and system specifications.  
-- Key Features: Highlight the main functionalities and important aspects of the snippet.
+# Custom instructions focused on robot navigation
+ROBOT_CUSTOM_INSTRUCTIONS = """
+Extract the Following Information:
+
+- Visual Observations: Detailed descriptions of what the robot sees in the environment
+- Spatial Information: Locations, landmarks, and navigation points
+- Object Details: Descriptions and characteristics of objects encountered
+- Environmental Conditions: Lighting, weather, and other environmental factors
+- Temporal Information: When observations were made and any time-dependent changes
 """
-mem0_client.update_project(custom_instructions=CUSTOM_INSTRUCTIONS)
+
+# Update project with robot-focused instructions
+mem0_client.update_project(custom_instructions=ROBOT_CUSTOM_INSTRUCTIONS)
 
 @mcp.tool(
-    description="""Add a new coding preference to mem0. This tool stores code snippets, implementation details,
-    and coding patterns for future reference. Store every code snippet. When storing code, you should include:
-    - Complete code with all necessary imports and dependencies
-    - Language/framework version information (e.g., "Python 3.9", "React 18")
-    - Full implementation context and any required setup/configuration
-    - Detailed comments explaining the logic, especially for complex sections
-    - Example usage or test cases demonstrating the code
-    - Any known limitations, edge cases, or performance considerations
-    - Related patterns or alternative approaches
-    - Links to relevant documentation or resources
-    - Environment setup requirements (if applicable)
-    - Error handling and debugging tips
-    The preference will be indexed for semantic search and can be retrieved later using natural language queries."""
+    description="""Store robot observations in mem0. This tool stores detailed descriptions of what the robot
+    observes in the real world. When storing observations, include:
+    - Visual descriptions of surroundings and objects
+    - Spatial information (locations, distances, orientations)
+    - Object properties (size, color, shape, function)
+    - Environmental conditions (lighting, weather, etc.)
+    - Time of observation
+    - Any changes observed from previous observations
+    The observations will be indexed for semantic search and can be retrieved later."""
 )
-async def add_coding_preference(text: str) -> str:
-    """Add a new coding preference to mem0.
+async def store_robot_observation(observation: str) -> str:
+    """Store a robot observation in mem0.
 
-    This tool is designed to store code snippets, implementation patterns, and programming knowledge.
-    When storing code, it's recommended to include:
-    - Complete code with imports and dependencies
-    - Language/framework information
-    - Setup instructions if needed
-    - Documentation and comments
-    - Example usage
-
+    This tool is designed to capture what the robot observes in the real world.
+    
     Args:
-        text: The content to store in memory, including code, documentation, and context
+        observation: Detailed description of what the robot observes
     """
     try:
-        messages = [{"role": "user", "content": text}]
-        mem0_client.add(messages, user_id=DEFAULT_USER_ID, output_format="v1.1")
-        return f"Successfully added preference: {text}"
+        messages = [{"role": "user", "content": observation}]
+        mem0_client.add(messages, user_id=ROBOT_USER_ID, output_format="v1.1")
+        return f"Successfully stored observation: {observation[:50]}..." if len(observation) > 50 else f"Successfully stored observation: {observation}"
     except Exception as e:
-        return f"Error adding preference: {str(e)}"
+        return f"Error storing observation: {str(e)}"
 
 @mcp.tool(
-    description="""Retrieve all stored coding preferences for the default user. Call this tool when you need 
-    complete context of all previously stored preferences. This is useful when:
-    - You need to analyze all available code patterns
-    - You want to check all stored implementation examples
-    - You need to review the full history of stored solutions
-    - You want to ensure no relevant information is missed
-    Returns a comprehensive list of:
-    - Code snippets and implementation patterns
-    - Programming knowledge and best practices
-    - Technical documentation and examples
-    - Setup and configuration guides
-    Results are returned in JSON format with metadata."""
+    description="""Search through stored robot observations. This tool should be called when the robot needs to
+    recall previous observations about:
+    - Previously observed objects or landmarks
+    - Spatial information about the environment
+    - Changes observed over time
+    - Navigation history
+    The search uses natural language understanding to find relevant matches."""
 )
-async def get_all_coding_preferences() -> str:
-    """Get all coding preferences for the default user.
-
-    Returns a JSON formatted list of all stored preferences, including:
-    - Code implementations and patterns
-    - Technical documentation
-    - Programming best practices
-    - Setup guides and examples
-    Each preference includes metadata about when it was created and its content type.
+async def search_robot_observations(query: str) -> str:
     """
-    try:
-        memories = mem0_client.get_all(user_id=DEFAULT_USER_ID, page=1, page_size=50)
-        flattened_memories = [memory["memory"] for memory in memories["results"]]
-        return json.dumps(flattened_memories, indent=2)
-    except Exception as e:
-        return f"Error getting preferences: {str(e)}"
-
-@mcp.tool(
-    description="""Search through stored coding preferences using semantic search. This tool should be called 
-    for EVERY user query to find relevant code and implementation details. It helps find:
-    - Specific code implementations or patterns
-    - Solutions to programming problems
-    - Best practices and coding standards
-    - Setup and configuration guides
-    - Technical documentation and examples
-    The search uses natural language understanding to find relevant matches, so you can
-    describe what you're looking for in plain English. Always search the preferences before 
-    providing answers to ensure you leverage existing knowledge."""
-)
-async def search_coding_preferences(query: str) -> str:
-    """
-    Search coding preferences using semantic search.
+    Search robot observations using semantic search.
 
     Parameters
     ----------
     query : str
-        Search query string describing what you're looking for. Can be natural language
-        or specific technical terms.
+        Search query describing what the robot is looking for.
 
     Returns
     -------
     str
         A JSON formatted string containing the search results, ranked by relevance.
-
-    Examples
-    --------
-    >>> result = await search_coding_preferences("Python type annotations")
-    >>> print(result)
     """
     try:
-        memories = mem0_client.search(query, user_id=DEFAULT_USER_ID, output_format="v1.1")
+        memories = mem0_client.search(query, user_id=ROBOT_USER_ID, output_format="v1.1")
         flattened_memories = [memory["memory"] for memory in memories["results"]]
         return json.dumps(flattened_memories, indent=2)
     except Exception as e:
-        return f"Error searching preferences: {str(e)}"
+        return f"Error searching observations: {str(e)}"
+
+@mcp.tool(
+    description="""Compare current observation with previous observations to detect changes in the environment.
+    This tool is useful for:
+    - Identifying objects that have moved
+    - Detecting new objects that weren't there before
+    - Noticing changes in environmental conditions
+    - Tracking dynamic elements in the environment over time
+    It helps the robot understand how the environment evolves."""
+)
+async def detect_environment_changes(current_observation: str, location: str) -> str:
+    """
+    Compare current observation with previous observations at the same location to detect changes.
+
+    Parameters
+    ----------
+    current_observation : str
+        The current observation to compare against previous ones
+    location : str
+        The location identifier to search for previous observations
+
+    Returns
+    -------
+    str
+        A description of detected changes or lack thereof
+    """
+    try:
+        # First, store the current observation
+        await store_robot_observation(f"{current_observation} Location: {location}")
+        
+        # Then, query previous observations at this location
+        query = f"What did I previously observe at location {location}?"
+        previous_memories = json.loads(await search_robot_observations(query))
+        
+        if not previous_memories:
+            return f"No previous observations found at {location}. This is new territory."
+        
+        # Compare current with previous (simple approach)
+        # In a real implementation, this would use more sophisticated comparison
+        return json.dumps({
+            "current_observation": current_observation,
+            "previous_observations": previous_memories[:2],  # Just compare with the top 2
+            "location": location
+        }, indent=2)
+    except Exception as e:
+        return f"Error detecting changes: {str(e)}"
 
 # Updated type annotations to Python >3.11 style and added numpy-style docstrings with examples
 def create_starlette_app(mcp_server: Server, *, debug: bool = False) -> Starlette:

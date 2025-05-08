@@ -1,129 +1,139 @@
-# MCP Server with Mem0 for Managing Coding Preferences
+# Navigation Robot Memory System with mem0
 
-This demonstrates a structured approach for using an [MCP](https://modelcontextprotocol.io/introduction) server with [mem0](https://mem0.ai) to manage coding preferences efficiently. The server can be used with Cursor and provides essential tools for storing, retrieving, and searching coding preferences.
+This repository contains a mem0-based memory system for navigation robots. It provides tools for robots to store and retrieve observations about their environment, detect changes, and build mental maps.
 
-## Installation
+## Overview
 
-1. Clone this repository
-2. Initialize the `uv` environment:
+The system uses [mem0](https://mem0.ai/) to provide long-term memory capabilities for navigation robots. This allows robots to:
 
-```bash
-uv venv
-```
+1. **Store observations** about their environment
+2. **Retrieve relevant information** using natural language queries  
+3. **Detect changes** in previously visited locations
+4. **Build mental maps** of their surroundings
 
-3. Activate the virtual environment:
+## Components
 
-```bash
-source .venv/bin/activate
-```
+### Python Implementation
 
-4. Install the dependencies using `uv`:
+- `main.py`: Contains the MCP server and mem0 client tools
+  - `store_robot_observation`: Stores observations with location context
+  - `search_robot_observations`: Retrieves observations using semantic search
+  - `detect_environment_changes`: Compares current and previous observations to detect changes
 
-```bash
-# Install in editable mode from pyproject.toml
-uv pip install -e .
-```
+### Node.js Implementation
 
-## Setup
+- `node/mem0/src/index.ts`: Contains the TypeScript implementation of the memory tools
+  - `store-robot-observation`: Stores observations with metadata (location, timestamp, etc.)
+  - `search-robot-observations`: Performs semantic search over stored observations
+  - `detect-environment-changes`: Identifies differences between observations
+  - `build-spatial-map`: Organizes memories by location to create a mental model
 
-Before proceeding, ensure you have created a `.env` file in the root directory with the following content:
+### Examples
 
-```
-MEM0_API_KEY=<your-api-key>
-HOST=<your-host> # Optional, defaults to 0.0.0.0
-PORT=<your-port> # Optional, defaults to 8080
-```
-
-Replace `<your-api-key>`, `<your-host>`, and `<your-port>` with your actual values. These variables are required for the application to function correctly, except `HOST` and `PORT`, which have default values.
+- `robot_example.py`: Basic example demonstrating observation storage and retrieval
+- `robot_navigation.py`: Advanced simulation showing:
+  - Recording observations with location context
+  - Retrieving memories about objects and locations
+  - Change detection in the environment
+  - Building mental maps
+  - Revisiting locations and handling dynamic environments
 
 ## Usage
 
-1. Start the MCP server:
+### Starting the Server
+
+Run the MCP server:
 
 ```bash
-uv run main.py
+python main.py --host 0.0.0.0 --port 8080
 ```
 
-2. In Cursor, connect to the SSE endpoint, follow this [doc](https://docs.cursor.com/context/model-context-protocol) for reference:
-
-```
-http://0.0.0.0:8080/sse
-```
-
-3. Open the Composer in Cursor and switch to `Agent` mode.
-
-## Using Docker
-
-To run the MCP server with Docker, follow these steps:
-
-1. Build and start the Docker container using `docker-compose`:
+### Running the Examples
 
 ```bash
-docker-compose up --build -d
+# Simple example
+python robot_example.py
+
+# Advanced navigation simulation
+python robot_navigation.py
 ```
 
-This command will build the Docker image and start the container in detached mode.
-
-2. Verify that the container is running:
+### Building Node.js Implementation
 
 ```bash
-docker ps
+cd node/mem0
+npm install
+npm run build
 ```
 
-You should see the `mem0-server` container listed.
+## Integrating with Your Robot
 
-3. Access the MCP server at the configured endpoint:
+To use mem0 with your navigation robot:
 
-```
-http://<your-host>:<your-port>/sse
-```
+1. Import the memory functions:
+   ```python
+   from main import store_robot_observation, search_robot_observations, detect_environment_changes
+   ```
 
-Replace `<your-host>` and `<your-port>` with the values you set in the `.env` file.
+2. Store observations when your robot sees something:
+   ```python
+   result = await store_robot_observation(
+       f"I see a table and chair. My location is {location}. Time: {timestamp}"
+   )
+   ```
 
-4. To stop the container, use:
+3. Retrieve relevant memories:
+   ```python
+   memories = await search_robot_observations("Where did I see a chair?")
+   ```
 
-```bash
-docker-compose down
-```
+4. Detect changes when revisiting locations:
+   ```python
+   changes = await detect_environment_changes(
+       "The room now has a plant that wasn't here before", 
+       "living_room"
+   )
+   ```
 
-This will stop and remove the container.
+## NavigationRobot Class
 
-## Demo with Cursor
+The `NavigationRobot` class in `robot_navigation.py` provides a complete framework for a robot with memory capabilities:
 
-https://github.com/user-attachments/assets/56670550-fb11-4850-9905-692d3496231c
+```python
+robot = NavigationRobot(robot_id="my_robot")
 
-## Features
+# Store observations
+await robot.observe_environment("kitchen", "I see a refrigerator and table")
 
-The server provides three main tools for managing code preferences:
+# Find objects
+await robot.look_for_object("refrigerator")
 
-1. `add_coding_preference`: Store code snippets, implementation details, and coding patterns with comprehensive context including:
-   - Complete code with dependencies
-   - Language/framework versions
-   - Setup instructions
-   - Documentation and comments
-   - Example usage
-   - Best practices
+# Navigate using memories
+success = await robot.navigate_to("kitchen")
 
-2. `get_all_coding_preferences`: Retrieve all stored coding preferences to analyze patterns, review implementations, and ensure no relevant information is missed.
+# Detect changes
+changes = await robot.detect_changes("kitchen", "The table now has plates on it")
 
-3. `search_coding_preferences`: Semantically search through stored coding preferences to find relevant:
-   - Code implementations
-   - Programming solutions
-   - Best practices
-   - Setup guides
-   - Technical documentation
-
-## Why?
-
-This implementation allows for a persistent coding preferences system that can be accessed via MCP. The SSE-based server can run as a process that agents connect to, use, and disconnect from whenever needed. This pattern fits well with "cloud-native" use cases where the server and clients can be decoupled processes on different nodes.
-
-### Server
-
-By default, the server runs on 0.0.0.0:8080 but is configurable with command line arguments like:
-
-```
-uv run main.py --host <your host> --port <your port>
+# Build a mental map
+mental_map = await robot.build_mental_map()
 ```
 
-The server exposes an SSE endpoint at `/sse` that MCP clients can connect to for accessing the coding preferences management tools.
+## Requirements
+
+- Python 3.8+
+- Node.js 16+ (for TypeScript implementation)
+- mem0 API access
+- dotenv for environment variables
+
+## Configuration
+
+Set your mem0 API key in a `.env` file:
+
+```
+MEM0_API_KEY=your_api_key_here
+```
+
+## License
+
+MIT
 
